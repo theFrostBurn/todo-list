@@ -21,9 +21,9 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const priorityColors = {
-  3: 'bg-red-50 border-red-200 hover:bg-red-100',
-  2: 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100',
-  1: 'bg-green-50 border-green-200 hover:bg-green-100',
+  3: 'bg-red-100 hover:bg-red-200',
+  2: 'bg-amber-100 hover:bg-amber-200',
+  1: 'bg-green-100 hover:bg-green-200',
 };
 
 // SortableTodoItem 컴포넌트의 props 타입 정의
@@ -55,10 +55,13 @@ function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProp
       {...listeners}
       style={style}
       className={`
-        rounded-lg border p-4 cursor-grab active:cursor-grabbing
+        rounded-lg p-4 cursor-grab active:cursor-grabbing
         ${priorityColors[todo.priority]}
         ${todo.completed ? 'opacity-60' : ''}
-        ${isDragging ? 'shadow-lg scale-105 z-50' : 'shadow-sm'}
+        ${isDragging 
+          ? 'shadow-lg scale-105 z-50' 
+          : 'shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+        }
         transform transition-all duration-200
       `}
     >
