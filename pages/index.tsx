@@ -1,33 +1,132 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Todo } from '@/types/todo';
-import { FaTrash, FaStar, FaPlus } from 'react-icons/fa';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { motion, AnimatePresence } from 'framer-motion';
+import { FaTrash, FaStar, FaPlus, FaGripVertical } from 'react-icons/fa';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const priorityColors = {
-  1: 'bg-green-50 hover:bg-green-100',
-  2: 'bg-amber-50 hover:bg-amber-100',
-  3: 'bg-rose-50 hover:bg-rose-100',
+  3: 'bg-red-50 border-red-200 hover:bg-red-100',
+  2: 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100',
+  1: 'bg-green-50 border-green-200 hover:bg-green-100',
 };
 
-const priorityBorderColors = {
-  1: 'border-green-200',
-  2: 'border-amber-200',
-  3: 'border-rose-200',
-};
+// SortableTodoItem 컴포넌트의 props 타입 정의
+interface SortableTodoItemProps {
+  todo: Todo;
+  updateTodo: (id: string, updates: Partial<Todo>) => void;
+  deleteTodo: (id: string) => void;
+}
+
+function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: todo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`
+        flex items-center gap-3 p-3 bg-white rounded-lg border
+        ${todo.completed ? 'opacity-75 bg-gray-50' : ''}
+        ${isDragging ? 'shadow-lg z-50' : 'shadow-sm'}
+      `}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
+      >
+        <FaGripVertical />
+      </div>
+      
+      <input
+        type="checkbox"
+        checked={todo.completed}
+        onChange={(e) => updateTodo(todo.id, { completed: e.target.checked })}
+        className="w-5 h-5 rounded-lg border-2 border-gray-300 text-blue-500 focus:ring-blue-500"
+      />
+      
+      <input
+        value={todo.title}
+        onChange={(e) => updateTodo(todo.id, { title: e.target.value })}
+        className={`flex-1 bg-transparent focus:outline-none ${
+          todo.completed ? 'line-through text-gray-400' : ''
+        }`}
+      />
+      
+      <div className="flex items-center gap-4">
+        <div className="flex gap-1">
+          {[1, 2, 3].map((p) => (
+            <button
+              key={p}
+              onClick={() => updateTodo(todo.id, { priority: p as 1 | 2 | 3 })}
+              className={`text-sm transition-colors ${
+                p <= todo.priority ? 'text-yellow-400' : 'text-gray-200'
+              }`}
+            >
+              <FaStar />
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => deleteTodo(todo.id)}
+          className="text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <FaTrash />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
 
-  const createTodo = (title: string, position: { x: number; y: number }) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 드래그 시작을 위한 최소 이동 거리를 줄임
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const createTodo = (title: string) => {
     const newTodo: Todo = {
       id: uuidv4(),
       title,
       priority: 2,
       completed: false,
-      position,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -37,7 +136,9 @@ export default function Home() {
 
   const updateTodo = (id: string, updates: Partial<Todo>) => {
     setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, ...updates, updatedAt: new Date() } : todo
+      todo.id === id 
+        ? { ...todo, ...updates }
+        : todo
     ));
   };
 
@@ -45,158 +146,78 @@ export default function Home() {
     setTodos(todos.filter(todo => todo.id !== id));
   };
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
     
-    const items = Array.from(todos);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setTodos(items);
-  };
-
-  const handleQuickAdd = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && newTodoTitle.trim()) {
-      createTodo(newTodoTitle, { x: 0, y: 0 });
-      setNewTodoTitle('');
+    if (over && active.id !== over.id) {
+      setTodos((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
   };
 
+  const onChange = (id: string, completed: boolean) => {
+    updateTodo(id, { completed });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-6 mb-8"
-        >
-          <h1 className="text-4xl font-bold text-gray-800">메모 보드</h1>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">할 일 목록</h1>
           
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-2">
             <input
               type="text"
               value={newTodoTitle}
               onChange={(e) => setNewTodoTitle(e.target.value)}
-              onKeyPress={handleQuickAdd}
-              placeholder="새로운 메모를 입력하세요 (Enter를 눌러 추가)"
-              className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                const id = createTodo('', { x: 0, y: 0 });
-                setTimeout(() => {
-                  const element = document.getElementById(`todo-${id}`);
-                  if (element) element.focus();
-                }, 100);
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && newTodoTitle.trim()) {
+                  createTodo(newTodoTitle);
+                  setNewTodoTitle('');
+                }
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl shadow-lg transition-colors"
+              placeholder="새로운 할 일을 입력하세요 (Enter를 눌러 추가)"
+              className="flex-1 px-4 py-3 text-sm bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            <button
+              onClick={() => {
+                if (newTodoTitle.trim()) {
+                  createTodo(newTodoTitle);
+                  setNewTodoTitle('');
+                }
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
             >
               <FaPlus />
-            </motion.button>
+            </button>
           </div>
-        </motion.div>
+        </div>
 
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="todos">
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                <AnimatePresence>
-                  {todos.map((todo, index) => (
-                    <Draggable key={todo.id} draggableId={todo.id} index={index}>
-                      {(provided) => (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                        >
-                          <div className={`
-                            p-4 rounded-xl shadow-sm border transition-all duration-200
-                            ${priorityColors[todo.priority as keyof typeof priorityColors]}
-                            ${priorityBorderColors[todo.priority as keyof typeof priorityBorderColors]}
-                            ${todo.completed ? 'opacity-75' : 'opacity-100'}
-                          `}>
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex gap-2">
-                                {[1, 2, 3].map((p) => (
-                                  <button
-                                    key={p}
-                                    onClick={() => updateTodo(todo.id, { priority: p as 1 | 2 | 3 })}
-                                    className={`text-sm transition-colors ${
-                                      p <= todo.priority ? 'text-yellow-500' : 'text-gray-300'
-                                    }`}
-                                  >
-                                    <FaStar />
-                                  </button>
-                                ))}
-                              </div>
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => deleteTodo(todo.id)}
-                                className="text-gray-400 hover:text-red-500 transition-colors"
-                              >
-                                <FaTrash />
-                              </motion.button>
-                            </div>
-                            
-                            <div className="relative">
-                              <textarea
-                                id={`todo-${todo.id}`}
-                                value={todo.title}
-                                onChange={(e) => updateTodo(todo.id, { title: e.target.value })}
-                                className={`w-full bg-transparent resize-none focus:outline-none min-h-[100px] ${
-                                  todo.completed ? 'line-through text-gray-500' : ''
-                                }`}
-                                placeholder="메모를 입력하세요..."
-                              />
-                            </div>
-                            
-                            <div className="flex items-center justify-end mt-2">
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => updateTodo(todo.id, { completed: !todo.completed })}
-                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors
-                                  ${todo.completed 
-                                    ? 'bg-blue-500 border-blue-500' 
-                                    : 'border-gray-300 hover:border-blue-500'
-                                  }`}
-                              >
-                                {todo.completed && (
-                                  <motion.svg 
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="w-4 h-4 text-white" 
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path 
-                                      fill="currentColor" 
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    />
-                                  </motion.svg>
-                                )}
-                              </motion.button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </Draggable>
-                  ))}
-                </AnimatePresence>
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={todos}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-2">
+              {todos.map((todo) => (
+                <SortableTodoItem 
+                  key={todo.id} 
+                  todo={todo} 
+                  updateTodo={updateTodo}
+                  deleteTodo={deleteTodo}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   );
