@@ -1,113 +1,143 @@
 import { useState, useEffect } from 'react';
 import { Todo } from '@/types/todo';
-import { addTodo, updateTodo, deleteTodo, subscribeTodos } from '@/lib/todoApi';
-import { FaTrash, FaEdit, FaCheck, FaStar } from 'react-icons/fa';
-import Image from "next/image";
-import localFont from "next/font/local";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+import { FaTrash, FaStar, FaPlus } from 'react-icons/fa';
+import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [newTodo, setNewTodo] = useState('');
-  const [priority, setPriority] = useState<1 | 2 | 3>(2);
+  const [newTodoMode, setNewTodoMode] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = subscribeTodos(setTodos);
-    return () => unsubscribe();
-  }, []);
-
-  const handleAddTodo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTodo.trim()) return;
-
-    await addTodo({
-      title: newTodo,
-      priority,
+  const createTodo = (position: { x: number; y: number }) => {
+    const newTodo: Todo = {
+      id: uuidv4(),
+      title: '',
+      priority: 2,
       completed: false,
-    });
-    setNewTodo('');
-    setPriority(2);
+      position,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    setTodos([...todos, newTodo]);
+    return newTodo.id;
   };
 
-  const handleToggleComplete = async (todo: Todo) => {
-    await updateTodo(todo.id!, { completed: !todo.completed });
+  const updateTodo = (id: string, updates: Partial<Todo>) => {
+    setTodos(todos.map(todo => 
+      todo.id === id ? { ...todo, ...updates, updatedAt: new Date() } : todo
+    ));
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteTodo(id);
+  const deleteTodo = (id: string) => {
+    setTodos(todos.filter(todo => todo.id !== id));
+  };
+
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(todos);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setTodos(items);
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">할 일 목록</h1>
-      
-      <form onSubmit={handleAddTodo} className="mb-6">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            placeholder="새로운 할 일을 입력하세요"
-            className="flex-1 p-2 border rounded"
-          />
-          <select
-            value={priority}
-            onChange={(e) => setPriority(Number(e.target.value) as 1 | 2 | 3)}
-            className="p-2 border rounded"
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">메모 보드</h1>
+          <button
+            onClick={() => {
+              const id = createTodo({ x: 0, y: 0 });
+              setTimeout(() => {
+                const element = document.getElementById(`todo-${id}`);
+                if (element) element.focus();
+              }, 100);
+            }}
+            className="bg-yellow-400 hover:bg-yellow-500 text-white p-3 rounded-full shadow-lg"
           >
-            <option value={1}>높음</option>
-            <option value={2}>중간</option>
-            <option value={3}>낮음</option>
-          </select>
-          <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">
-            추가
+            <FaPlus />
           </button>
         </div>
-      </form>
 
-      <ul className="space-y-2">
-        {todos.map((todo) => (
-          <li
-            key={todo.id}
-            className={`flex items-center gap-2 p-3 border rounded ${
-              todo.completed ? 'bg-gray-100' : ''
-            }`}
-          >
-            <button
-              onClick={() => handleToggleComplete(todo)}
-              className={`p-2 rounded ${
-                todo.completed ? 'text-green-500' : 'text-gray-400'
-              }`}
-            >
-              <FaCheck />
-            </button>
-            <span className={`flex-1 ${todo.completed ? 'line-through' : ''}`}>
-              {todo.title}
-            </span>
-            <div className="flex items-center gap-2">
-              {[...Array(todo.priority)].map((_, i) => (
-                <FaStar key={i} className="text-yellow-400" />
-              ))}
-              <button
-                onClick={() => handleDelete(todo.id!)}
-                className="p-2 text-red-500"
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="todos">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
               >
-                <FaTrash />
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+                {todos.map((todo, index) => (
+                  <Draggable key={todo.id} draggableId={todo.id} index={index}>
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={`
+                          transform transition-all duration-200
+                          ${todo.completed ? 'opacity-75' : 'opacity-100'}
+                        `}
+                      >
+                        <div className="bg-yellow-100 p-4 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex gap-1">
+                              {[...Array(3)].map((_, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => updateTodo(todo.id, { priority: i + 1 })}
+                                  className={`text-sm ${
+                                    i < todo.priority ? 'text-yellow-500' : 'text-gray-300'
+                                  }`}
+                                >
+                                  <FaStar />
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => deleteTodo(todo.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                          
+                          <div className="relative">
+                            <textarea
+                              id={`todo-${todo.id}`}
+                              value={todo.title}
+                              onChange={(e) => updateTodo(todo.id, { title: e.target.value })}
+                              className="w-full bg-transparent resize-none focus:outline-none min-h-[100px]"
+                              placeholder="메모를 입력하세요..."
+                            />
+                            <div
+                              className="absolute bottom-0 right-0 left-0 h-6 bg-gradient-to-t from-yellow-100 to-transparent"
+                              aria-hidden="true"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center mt-2">
+                            <input
+                              type="checkbox"
+                              checked={todo.completed}
+                              onChange={(e) => updateTodo(todo.id, { completed: e.target.checked })}
+                              className="form-checkbox h-4 w-4 text-yellow-500"
+                            />
+                            <span className="ml-2 text-sm text-gray-600">완료</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
     </div>
   );
 }
