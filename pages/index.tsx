@@ -16,7 +16,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -45,62 +45,97 @@ function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProp
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || undefined,
+    transition,
   };
 
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={style}
       className={`
-        flex items-center gap-3 p-3 bg-white rounded-lg border
-        ${todo.completed ? 'opacity-75 bg-gray-50' : ''}
-        ${isDragging ? 'shadow-lg z-50' : 'shadow-sm'}
+        rounded-lg border p-4 cursor-grab active:cursor-grabbing
+        ${priorityColors[todo.priority]}
+        ${todo.completed ? 'opacity-60' : ''}
+        ${isDragging ? 'shadow-lg scale-105 z-50' : 'shadow-sm'}
+        transform transition-all duration-200
       `}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing"
-      >
-        <FaGripVertical />
-      </div>
-      
-      <input
-        type="checkbox"
-        checked={todo.completed}
-        onChange={(e) => updateTodo(todo.id, { completed: e.target.checked })}
-        className="w-5 h-5 rounded-lg border-2 border-gray-300 text-blue-500 focus:ring-blue-500"
-      />
-      
-      <input
-        value={todo.title}
-        onChange={(e) => updateTodo(todo.id, { title: e.target.value })}
-        className={`flex-1 bg-transparent focus:outline-none ${
-          todo.completed ? 'line-through text-gray-400' : ''
-        }`}
-      />
-      
-      <div className="flex items-center gap-4">
-        <div className="flex gap-1">
-          {[1, 2, 3].map((p) => (
-            <button
-              key={p}
-              onClick={() => updateTodo(todo.id, { priority: p as 1 | 2 | 3 })}
-              className={`text-sm transition-colors ${
-                p <= todo.priority ? 'text-yellow-400' : 'text-gray-200'
-              }`}
-            >
-              <FaStar />
-            </button>
-          ))}
-        </div>
+      <div className="flex items-start gap-3">
         <button
-          onClick={() => deleteTodo(todo.id)}
-          className="text-gray-400 hover:text-red-500 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            updateTodo(todo.id, { completed: !todo.completed });
+          }}
+          className={`
+            w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-1
+            transition-all duration-200
+            ${todo.completed 
+              ? 'bg-blue-500 border-blue-500 text-white' 
+              : 'border-gray-300 hover:border-blue-500'
+            }
+          `}
         >
-          <FaTrash />
+          {todo.completed && (
+            <svg 
+              className="w-3 h-3" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={3} 
+                d="M5 13l4 4L19 7" 
+              />
+            </svg>
+          )}
         </button>
+        
+        <div className="flex-1">
+          <div 
+            className={`text-lg ${todo.completed ? 'line-through text-gray-400' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const newTitle = prompt('할 일 수정:', todo.title);
+              if (newTitle !== null) {
+                updateTodo(todo.id, { title: newTitle });
+              }
+            }}
+          >
+            {todo.title}
+          </div>
+          
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex gap-1">
+              {[1, 2, 3].map((p) => (
+                <button
+                  key={p}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateTodo(todo.id, { priority: p as 1 | 2 | 3 });
+                  }}
+                  className={`text-sm transition-colors ${
+                    p <= todo.priority ? 'text-yellow-400' : 'text-gray-200'
+                  }`}
+                >
+                  <FaStar />
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteTodo(todo.id);
+              }}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <FaTrash />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -113,7 +148,7 @@ export default function Home() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // 드래그 시작을 위한 최소 이동 거리를 줄임
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -165,7 +200,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">할 일 목록</h1>
           
@@ -201,12 +236,13 @@ export default function Home() {
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
+          modifiers={[]}
         >
           <SortableContext
             items={todos}
-            strategy={verticalListSortingStrategy}
+            strategy={horizontalListSortingStrategy}
           >
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {todos.map((todo) => (
                 <SortableTodoItem 
                   key={todo.id} 
