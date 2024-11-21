@@ -2,6 +2,9 @@
 
 # Firebase
 firebase_key.md
+/lib/firebase_key.md
+/requirements/firebase_key.md
+*.firebase_key.md
 
 # dependencies
 /node_modules
