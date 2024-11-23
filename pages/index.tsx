@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { Todo, TodoCategory } from '@/types/todo';
 import { FaTrash, FaStar, FaPlus, FaBriefcase, FaUser, FaShoppingCart, FaBook, FaHeartbeat } from 'react-icons/fa';
