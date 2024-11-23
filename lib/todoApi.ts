@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot, orderBy, getDocs, writeBatch } from 'firebase/firestore';
 import { Todo } from '@/types/todo';
 
 export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => {
@@ -35,7 +35,7 @@ export const updateTodo = async (id: string, data: Partial<Todo>) => {
 
 export const updateTodoOrder = async (todos: Todo[]) => {
   try {
-    const batch = db.batch();
+    const batch = writeBatch(db);
     todos.forEach((todo, index) => {
       const todoRef = doc(db, 'todos', todo.id);
       batch.update(todoRef, { order: index, updatedAt: new Date() });
