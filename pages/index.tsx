@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Todo } from '@/types/todo';
-import { FaTrash, FaStar, FaPlus, FaGripVertical } from 'react-icons/fa';
+import { Todo, TodoCategory } from '@/types/todo';
+import { FaTrash, FaStar, FaPlus, FaBriefcase, FaUser, FaShoppingCart, FaBook, FaHeartbeat } from 'react-icons/fa';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
@@ -25,6 +25,14 @@ const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
   2: 'bg-amber-100 hover:bg-amber-200',
   1: 'bg-green-100 hover:bg-green-200',
+};
+
+const categoryIcons = {
+  work: { icon: FaBriefcase, color: 'text-blue-600' },
+  personal: { icon: FaUser, color: 'text-purple-600' },
+  shopping: { icon: FaShoppingCart, color: 'text-green-600' },
+  study: { icon: FaBook, color: 'text-yellow-600' },
+  health: { icon: FaHeartbeat, color: 'text-red-600' },
 };
 
 // SortableTodoItem 컴포넌트의 props 타입 정의
@@ -99,36 +107,62 @@ function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProp
         </button>
         
         <div className="flex-1">
-          <div 
-            className={`text-lg ${todo.completed ? 'line-through text-gray-400' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              const newTitle = prompt('할 일 수정:', todo.title);
-              if (newTitle !== null) {
-                updateTodo(todo.id, { title: newTitle });
-              }
-            }}
-          >
-            {todo.title}
+          <div className="flex items-center gap-2 mb-2">
+            {todo.category && (
+              <div className={`${categoryIcons[todo.category].color}`}>
+                {React.createElement(categoryIcons[todo.category].icon)}
+              </div>
+            )}
+            <div 
+              className={`text-lg ${todo.completed ? 'line-through text-gray-400' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const newTitle = prompt('할 일 수정:', todo.title);
+                if (newTitle !== null) {
+                  updateTodo(todo.id, { title: newTitle });
+                }
+              }}
+            >
+              {todo.title}
+            </div>
           </div>
           
           <div className="flex items-center justify-between mt-3">
-            <div className="flex gap-1">
-              {[1, 2, 3].map((p) => (
-                <button
-                  key={p}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    updateTodo(todo.id, { priority: p as 1 | 2 | 3 });
-                  }}
-                  className={`text-sm transition-colors ${
-                    p <= todo.priority ? 'text-yellow-400' : 'text-gray-200'
-                  }`}
-                >
-                  <FaStar />
-                </button>
-              ))}
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1">
+                {[1, 2, 3].map((p) => (
+                  <button
+                    key={p}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateTodo(todo.id, { priority: p as 1 | 2 | 3 });
+                    }}
+                    className={`text-sm transition-colors ${
+                      p <= todo.priority ? 'text-yellow-400' : 'text-gray-200'
+                    }`}
+                  >
+                    <FaStar />
+                  </button>
+                ))}
+              </div>
+              
+              <select
+                value={todo.category}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  updateTodo(todo.id, { category: e.target.value as TodoCategory });
+                }}
+                className="text-sm bg-white/50 border border-gray-200 rounded-md px-2 py-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="work">업무</option>
+                <option value="personal">개인</option>
+                <option value="shopping">쇼핑</option>
+                <option value="study">공부</option>
+                <option value="health">건강</option>
+              </select>
             </div>
+            
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -173,7 +207,8 @@ export default function Home() {
       title,
       priority: 2,
       completed: false,
-      order: 0
+      order: 0,
+      category: 'personal'
     };
     await addTodoToDb(newTodo);
   };

@@ -1,3 +1,5 @@
+export type TodoCategory = 'work' | 'personal' | 'shopping' | 'study' | 'health';
+
 export interface Todo {
   id: string;
   title: string;
@@ -7,4 +9,5 @@ export interface Todo {
   createdAt: Date;
   updatedAt: Date;
   order: number;
+  category: TodoCategory;
 } 
