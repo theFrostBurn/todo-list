@@ -173,6 +173,7 @@ export default function Home() {
       title,
       priority: 2,
       completed: false,
+      order: 0
     };
     await addTodoToDb(newTodo);
   };
