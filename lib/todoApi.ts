@@ -1,11 +1,11 @@
 import { db } from './firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { Todo } from '@/types/todo';
 
 export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => {
   try {
     const q = query(collection(db, 'todos'), orderBy('order', 'desc'));
-    const snapshot = await q.get();
+    const snapshot = await getDocs(q);
     const maxOrder = snapshot.empty ? 0 : snapshot.docs[0].data().order;
 
     await addDoc(collection(db, 'todos'), {
