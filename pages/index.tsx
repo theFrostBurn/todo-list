@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Todo } from '@/types/todo';
 import { FaTrash, FaStar, FaPlus, FaGripVertical } from 'react-icons/fa';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +19,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { addTodo as addTodoToDb, updateTodo as updateTodoInDb, deleteTodo as deleteTodoFromDb, subscribeTodos } from '@/lib/todoApi';
 
 const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
@@ -148,6 +149,14 @@ export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
 
+  useEffect(() => {
+    const unsubscribe = subscribeTodos((updatedTodos) => {
+      setTodos(updatedTodos);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -159,29 +168,21 @@ export default function Home() {
     })
   );
 
-  const createTodo = (title: string) => {
-    const newTodo: Todo = {
-      id: uuidv4(),
+  const createTodo = async (title: string) => {
+    const newTodo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
       title,
       priority: 2,
       completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
     };
-    setTodos([...todos, newTodo]);
-    return newTodo.id;
+    await addTodoToDb(newTodo);
   };
 
-  const updateTodo = (id: string, updates: Partial<Todo>) => {
-    setTodos(todos.map(todo => 
-      todo.id === id 
-        ? { ...todo, ...updates }
-        : todo
-    ));
+  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+    await updateTodoInDb(id, updates);
   };
 
-  const deleteTodo = (id: string) => {
-    setTodos(todos.filter(todo => todo.id !== id));
+  const deleteTodo = async (id: string) => {
+    await deleteTodoFromDb(id);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
