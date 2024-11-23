@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Todo, TodoCategory } from '@/types/todo';
 import { FaTrash, FaStar, FaPlus, FaBriefcase, FaUser, FaShoppingCart, FaBook, FaHeartbeat } from 'react-icons/fa';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,7 +42,8 @@ interface SortableTodoItemProps {
   deleteTodo: (id: string) => void;
 }
 
-function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProps) {
+// 1. 메모이제이션 추가
+const SortableTodoItem = React.memo(({ todo, updateTodo, deleteTodo }: SortableTodoItemProps) => {
   const {
     attributes,
     listeners,
@@ -181,7 +181,7 @@ function SortableTodoItem({ todo, updateTodo, deleteTodo }: SortableTodoItemProp
       </div>
     </div>
   );
-}
+});
 
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -217,13 +217,14 @@ export default function Home() {
     await addTodoToDb(newTodo);
   };
 
-  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+  // 2. 불필요한 리렌더링 방지
+  const updateTodo = useCallback(async (id: string, updates: Partial<Todo>) => {
     await updateTodoInDb(id, updates);
-  };
+  }, []);
 
-  const deleteTodo = async (id: string) => {
+  const deleteTodo = useCallback(async (id: string) => {
     await deleteTodoFromDb(id);
-  };
+  }, []);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -245,6 +246,20 @@ export default function Home() {
   const onChange = (id: string, completed: boolean) => {
     updateTodo(id, { completed });
   };
+
+  // 3. 큰 리스트 최적화
+  const TodoList = memo(({ todos }: { todos: Todo[] }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {todos.map((todo) => (
+        <SortableTodoItem 
+          key={todo.id} 
+          todo={todo} 
+          updateTodo={updateTodo}
+          deleteTodo={deleteTodo}
+        />
+      ))}
+    </div>
+  ));
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -290,16 +305,7 @@ export default function Home() {
             items={todos}
             strategy={horizontalListSortingStrategy}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {todos.map((todo) => (
-                <SortableTodoItem 
-                  key={todo.id} 
-                  todo={todo} 
-                  updateTodo={updateTodo}
-                  deleteTodo={deleteTodo}
-                />
-              ))}
-            </div>
+            <TodoList todos={todos} />
           </SortableContext>
         </DndContext>
       </div>
