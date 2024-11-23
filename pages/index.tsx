@@ -19,7 +19,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addTodo as addTodoToDb, updateTodo as updateTodoInDb, deleteTodo as deleteTodoFromDb, subscribeTodos } from '@/lib/todoApi';
+import { addTodo as addTodoToDb, updateTodo as updateTodoInDb, deleteTodo as deleteTodoFromDb, subscribeTodos, updateTodoOrder } from '@/lib/todoApi';
 
 const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
@@ -185,15 +185,19 @@ export default function Home() {
     await deleteTodoFromDb(id);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
       setTodos((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
         
-        return arrayMove(items, oldIndex, newIndex);
+        // DB에 새로운 순서 저장
+        updateTodoOrder(newItems).catch(console.error);
+        
+        return newItems;
       });
     }
   };

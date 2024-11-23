@@ -2,10 +2,15 @@ import { db } from './firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { Todo } from '@/types/todo';
 
-export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => {
+export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => {
   try {
+    const q = query(collection(db, 'todos'), orderBy('order', 'desc'));
+    const snapshot = await q.get();
+    const maxOrder = snapshot.empty ? 0 : snapshot.docs[0].data().order;
+
     await addDoc(collection(db, 'todos'), {
       ...todo,
+      order: maxOrder + 1,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -28,6 +33,20 @@ export const updateTodo = async (id: string, data: Partial<Todo>) => {
   }
 };
 
+export const updateTodoOrder = async (todos: Todo[]) => {
+  try {
+    const batch = db.batch();
+    todos.forEach((todo, index) => {
+      const todoRef = doc(db, 'todos', todo.id);
+      batch.update(todoRef, { order: index, updatedAt: new Date() });
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error updating todo order:', error);
+    throw error;
+  }
+};
+
 export const deleteTodo = async (id: string) => {
   try {
     await deleteDoc(doc(db, 'todos', id));
@@ -38,7 +57,7 @@ export const deleteTodo = async (id: string) => {
 };
 
 export const subscribeTodos = (callback: (todos: Todo[]) => void) => {
-  const q = query(collection(db, 'todos'), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, 'todos'), orderBy('order', 'asc'));
   return onSnapshot(q, (snapshot) => {
     const todos = snapshot.docs.map(doc => ({
       id: doc.id,
