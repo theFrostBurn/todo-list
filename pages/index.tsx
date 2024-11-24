@@ -19,7 +19,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addTodo, updateTodo, updateTodoOrder, subscribeTodos, deleteTodo } from '@/lib/todoApi';
+import { addTodo as addTodoToDb, updateTodo as updateTodoInDb, deleteTodo as deleteTodoFromDb, subscribeTodos, updateTodoOrder } from '@/lib/todoApi';
 
 const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
@@ -207,44 +207,23 @@ export default function Home() {
   );
 
   const createTodo = async (title: string) => {
-    if (!title.trim()) return;
-    
-    try {
-      const newTodo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'order'> = {
-        title: title.trim(),
-        priority: 2,
-        completed: false,
-        category: 'personal',
-        description: ''
-      };
-      
-      const createdTodo = await addTodo(newTodo);
-      console.log('Todo created successfully:', createdTodo);
-      
-      setNewTodoTitle('');
-    } catch (error) {
-      console.error('할 일 추가 중 오류 발생:', error);
-      alert('할 일을 추가하는 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
-    }
+    const newTodo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
+      title,
+      priority: 2,
+      completed: false,
+      order: 0,
+      category: 'personal'
+    };
+    await addTodoToDb(newTodo);
   };
 
   // 2. 불필요한 리렌더링 방지
-  const updateTodoItem = useCallback(async (id: string, updates: Partial<Todo>) => {
-    try {
-      await updateTodo(id, updates);
-    } catch (error) {
-      console.error('할 일 수정 중 오류 발생:', error);
-      alert('할 일을 수정하는 중 오류가 발생했습니다.');
-    }
+  const updateTodo = useCallback(async (id: string, updates: Partial<Todo>) => {
+    await updateTodoInDb(id, updates);
   }, []);
 
-  const deleteTodoItem = useCallback(async (id: string) => {
-    try {
-      await deleteTodo(id);
-    } catch (error) {
-      console.error('할 일 삭제 중 오류 발생:', error);
-      alert('할 일을 삭제하는 중 오류가 발생했습니다.');
-    }
+  const deleteTodo = useCallback(async (id: string) => {
+    await deleteTodoFromDb(id);
   }, []);
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -265,7 +244,7 @@ export default function Home() {
   };
 
   const onChange = (id: string, completed: boolean) => {
-    updateTodoItem(id, { completed });
+    updateTodo(id, { completed });
   };
 
   // 3. 큰 리스트 최적화
@@ -275,8 +254,8 @@ export default function Home() {
         <SortableTodoItem 
           key={todo.id} 
           todo={todo} 
-          updateTodo={updateTodoItem}
-          deleteTodo={deleteTodoItem}
+          updateTodo={updateTodo}
+          deleteTodo={deleteTodo}
         />
       ))}
     </div>
