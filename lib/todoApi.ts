@@ -63,7 +63,8 @@ export const updateTodoOrder = async (todos: Todo[]) => {
 
 export const deleteTodo = async (id: string) => {
   try {
-    await deleteDoc(doc(db, 'todos', id));
+    const todoRef = doc(db, 'todos', id);
+    await deleteDoc(todoRef);
   } catch (error) {
     console.error('Error deleting todo:', error);
     throw error;

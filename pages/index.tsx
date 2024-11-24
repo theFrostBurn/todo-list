@@ -19,7 +19,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addTodo, updateTodo, updateTodoOrder, subscribeTodos } from '@/lib/todoApi';
+import { addTodo, updateTodo, updateTodoOrder, subscribeTodos, deleteTodo } from '@/lib/todoApi';
 
 const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
@@ -238,8 +238,13 @@ export default function Home() {
     }
   }, []);
 
-  const deleteTodo = useCallback(async (id: string) => {
-    await deleteTodoFromDb(id);
+  const deleteTodoItem = useCallback(async (id: string) => {
+    try {
+      await deleteTodo(id);
+    } catch (error) {
+      console.error('할 일 삭제 중 오류 발생:', error);
+      alert('할 일을 삭제하는 중 오류가 발생했습니다.');
+    }
   }, []);
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -271,7 +276,7 @@ export default function Home() {
           key={todo.id} 
           todo={todo} 
           updateTodo={updateTodoItem}
-          deleteTodo={deleteTodo}
+          deleteTodo={deleteTodoItem}
         />
       ))}
     </div>
