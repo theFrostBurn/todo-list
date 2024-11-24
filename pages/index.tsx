@@ -229,8 +229,13 @@ export default function Home() {
   };
 
   // 2. 불필요한 리렌더링 방지
-  const updateTodo = useCallback(async (id: string, updates: Partial<Todo>) => {
-    await updateTodoInDb(id, updates);
+  const updateTodoItem = useCallback(async (id: string, updates: Partial<Todo>) => {
+    try {
+      await updateTodo(id, updates);
+    } catch (error) {
+      console.error('할 일 수정 중 오류 발생:', error);
+      alert('할 일을 수정하는 중 오류가 발생했습니다.');
+    }
   }, []);
 
   const deleteTodo = useCallback(async (id: string) => {
@@ -255,7 +260,7 @@ export default function Home() {
   };
 
   const onChange = (id: string, completed: boolean) => {
-    updateTodo(id, { completed });
+    updateTodoItem(id, { completed });
   };
 
   // 3. 큰 리스트 최적화
@@ -265,7 +270,7 @@ export default function Home() {
         <SortableTodoItem 
           key={todo.id} 
           todo={todo} 
-          updateTodo={updateTodo}
+          updateTodo={updateTodoItem}
           deleteTodo={deleteTodo}
         />
       ))}
