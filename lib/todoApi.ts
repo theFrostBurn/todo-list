@@ -72,13 +72,15 @@ export const deleteTodo = async (id: string) => {
 
 export const subscribeTodos = (callback: (todos: Todo[]) => void) => {
   const q = query(collection(db, 'todos'), orderBy('order', 'asc'));
+  
   return onSnapshot(q, (snapshot) => {
     const todos = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt.toDate(),
-      updatedAt: doc.data().updatedAt.toDate()
+      createdAt: doc.data().createdAt?.toDate(),
+      updatedAt: doc.data().updatedAt?.toDate()
     })) as Todo[];
+    
     callback(todos);
   });
 }; 

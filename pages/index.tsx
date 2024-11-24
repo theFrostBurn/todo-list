@@ -19,7 +19,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { addTodo, updateTodo, updateTodoOrder } from '@/lib/todoApi';
+import { addTodo, updateTodo, updateTodoOrder, subscribeTodos } from '@/lib/todoApi';
 
 const priorityColors = {
   3: 'bg-red-100 hover:bg-red-200',
