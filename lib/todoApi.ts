@@ -8,14 +8,28 @@ export const addTodo = async (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' 
     const snapshot = await getDocs(q);
     const maxOrder = snapshot.empty ? 0 : snapshot.docs[0].data().order;
 
-    await addDoc(collection(db, 'todos'), {
-      ...todo,
+    const newTodoData = {
+      title: todo.title,
+      priority: todo.priority,
+      completed: todo.completed,
+      category: todo.category,
+      description: todo.description || '',
       order: maxOrder + 1,
       createdAt: new Date(),
       updatedAt: new Date()
-    });
+    };
+
+    const docRef = await addDoc(collection(db, 'todos'), newTodoData);
+
+    return {
+      id: docRef.id,
+      ...newTodoData
+    };
   } catch (error) {
     console.error('Error adding todo:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to add todo: ${error.message}`);
+    }
     throw error;
   }
 };

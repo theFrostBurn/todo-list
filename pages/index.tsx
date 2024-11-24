@@ -207,14 +207,25 @@ export default function Home() {
   );
 
   const createTodo = async (title: string) => {
-    const newTodo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'> = {
-      title,
-      priority: 2,
-      completed: false,
-      order: 0,
-      category: 'personal'
-    };
-    await addTodoToDb(newTodo);
+    if (!title.trim()) return;
+    
+    try {
+      const newTodo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'order'> = {
+        title: title.trim(),
+        priority: 2,
+        completed: false,
+        category: 'personal',
+        description: ''
+      };
+      
+      const createdTodo = await addTodo(newTodo);
+      console.log('Todo created successfully:', createdTodo);
+      
+      setNewTodoTitle('');
+    } catch (error) {
+      console.error('할 일 추가 중 오류 발생:', error);
+      alert('할 일을 추가하는 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
+    }
   };
 
   // 2. 불필요한 리렌더링 방지
